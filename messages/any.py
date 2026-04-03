@@ -1,9 +1,11 @@
+from datetime import datetime, UTC, timedelta
 from json import JSONDecodeError
 
 from aiogram.types import Message
 from groq import RateLimitError
 
 from core.implementations.message import BaseMessage
+from database.services.user_check import get_by_tg_id, delete_oldest_by_tg_id, create_user_check
 from services.ai.news_checker import AI_SYSTEM_INSTRUCTIONS
 
 import json
@@ -22,19 +24,54 @@ class AnyMessage(BaseMessage):
     MAX_TEXT_LENGTH = 1000
 
     async def handle(self, message: Message) -> None:
+        async with self.client.db.session() as db:
+            async with db.begin():
+                checks = await get_by_tg_id(db, message.from_user.id)
+                one_hour_ago = datetime.now(UTC) - timedelta(hours=1)
+
+                for c in checks:
+                    if c.date < one_hour_ago:
+                        await delete_oldest_by_tg_id(db, c.tg_id)
+
+                checks = await get_by_tg_id(db, message.from_user.id)
+
+                if len(checks) >= 7:
+                    oldest = min(checks, key=lambda x: x.date)
+
+                    retry_at = oldest.date + timedelta(hours=1)
+                    now = datetime.now(UTC)
+
+                    remaining = retry_at - now
+
+                    seconds = int(remaining.total_seconds())
+                    minutes = seconds // 60
+                    seconds = seconds % 60
+
+                    await message.reply(
+                        f"❌ You've been rate-limited (You've reached 7 requests in 1 hour).\n"
+                        f"Try again in {minutes}m {seconds}s"
+                    )
+                    return
+
+                response = await self.__request_llm(message)
+
+                if response:
+                    await create_user_check(db, message.from_user.id, datetime.now(UTC))
+
+    async def __request_llm(self, message: Message) -> bool:
         text = (message.text or "").strip()
 
         if not text:
             await message.reply(
                 text="❌ The message content is empty. Please write something."
             )
-            return
+            return False
 
         if len(text) > self.MAX_TEXT_LENGTH:
             await message.reply(
                 text=f"❌ The message is too long. Maximum length is {self.MAX_TEXT_LENGTH} characters."
             )
-            return
+            return False
 
         status_message = await message.reply(
             text="⏳ Accepted. I'm checking information related to your query. Please wait."
@@ -70,7 +107,7 @@ class AnyMessage(BaseMessage):
                 await status_message.edit_text(
                     "❌ The model returned an empty response."
                 )
-                return
+                return False
 
             content = self._clean_json_content(content)
             data = json.loads(content)
@@ -80,21 +117,21 @@ class AnyMessage(BaseMessage):
             await status_message.edit_text(
                 "❌ I received an invalid JSON response from the model."
             )
-            return
+            return False
 
         except RateLimitError:
             self.client.logger.warning("Rate limit error during the request to LLM")
             await status_message.edit_text(
                 "❌ Rate limit error during the request. Please, try again later."
             )
-            return
+            return False
 
         except Exception as error:
             self.client.logger.exception("Groq request failed: %s", error)
             await status_message.edit_text(
                 "❌ An error occurred while processing your request."
             )
-            return
+            return False
 
         headline = data.get("headline", "unknown")
         verdict = data.get("verdict", "unknown")
@@ -136,6 +173,7 @@ class AnyMessage(BaseMessage):
             answer.extend(_sources)
 
         await status_message.edit_text(text="\n".join(answer), disable_web_page_preview=True, parse_mode="HTML")
+        return True
 
     @staticmethod
     def _clean_json_content(content: str) -> str:

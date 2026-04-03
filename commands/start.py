@@ -17,6 +17,6 @@ class StartCommand(BaseCommand):
                 "🤖 All you need: just send the content of the article, its title or any fact - and I will tell "
                 "you the probability of truthfulness with references, facts, etc.\n\n"
                 
-                "⚠️ Notice that you can send only 5 requests per hour to avoid limit restrictions by AI assistant!"
+                "⚠️ Notice that you can send only 7 requests per hour to avoid limit restrictions by AI assistant!"
             )
         )
