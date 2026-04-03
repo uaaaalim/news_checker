@@ -1,13 +1,11 @@
-# [PROJECT_NAME]
+# News Checker - Telegram Bot
 
-`[PROJECT_NAME]` — шаблон Telegram-бота на Python с поддержкой:
+`News checker` — Бот для телеграм с возможностью проверки любой статьи или новости на фейк
 - aiogram
 - SQLAlchemy
 - PostgreSQL
 - Alembic
 - Poetry
-
-Замените `[PROJECT_NAME]` и описание под свой проект.
 
 ---
 
@@ -99,12 +97,14 @@ BOT_TOKEN=1234567890:your_telegram_bot_token
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/bot_db
 LOG_LEVEL=INFO
 OWNER_IDS=123456789,987654321
+GROK_API_KEY=abcdefhijklmnop...xyz
 ```
 
 ### Обязательные переменные
 
 * `BOT_TOKEN`
 * `DATABASE_URL`
+* `GROK_API_KEY`
 
 ### Необязательные переменные
 

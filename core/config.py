@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 class Config:
     def __init__(
             self, bot_token: str, database_url: str, log_level: str = "INFO", owner_ids: list[str] = None,
-            db_pool_size: int = 20, db_max_overflow: int = 40, db_pool_recycle: int = 1800
+            db_pool_size: int = 20, db_max_overflow: int = 40, db_pool_recycle: int = 1800,
+            grok_api_key: str = None
     ) -> None:
         self.bot_token = bot_token
         self.database_url = database_url
@@ -15,6 +16,8 @@ class Config:
         self.db_pool_size = db_pool_size
         self.db_max_overflow = db_max_overflow
         self.db_pool_recycle = db_pool_recycle
+
+        self.grok_api_key = grok_api_key
 
 
 def _parse_owner_ids(raw_owner_ids: str | None) -> list[str]:
@@ -28,11 +31,13 @@ def load_config() -> Config:
 
     bot_token = os.getenv("BOT_TOKEN", "") # telegram bot token
     database_url = os.getenv("DATABASE_URL", "") # strictly asynchronous postgresql connection, PostgreSQL 18 stable
+    grok_api_key = os.getenv("GROK_API_KEY", "")
 
     missing = [
         name for name, value in {
             "BOT_TOKEN": bot_token,
-            "DATABASE_URL": database_url
+            "DATABASE_URL": database_url,
+            "GROK_API_KEY": grok_api_key
         }.items()
         if not value
     ]
@@ -49,5 +54,6 @@ def load_config() -> Config:
 
     return Config(
         bot_token=bot_token, database_url=database_url, log_level=log_level, owner_ids=owner_ids,
-        db_pool_size=db_pool_size, db_max_overflow=db_max_overflow, db_pool_recycle=db_pool_recycle
+        db_pool_size=db_pool_size, db_max_overflow=db_max_overflow, db_pool_recycle=db_pool_recycle,
+        grok_api_key=grok_api_key
     )

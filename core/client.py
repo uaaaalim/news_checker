@@ -6,6 +6,8 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
+from groq import AsyncGroq
+
 from core.config import load_config
 from core.database.session import Database
 from core.implementations.button import BaseButton
@@ -38,6 +40,8 @@ class BotClient:
         self.buttons = load_instances_from_directory("buttons", "buttons", BaseButton, self)
         self.messages = load_instances_from_directory("messages", "messages", BaseMessage, self)
         self.schedules = load_instances_from_directory("schedules", "schedules", BaseSchedule, self)
+
+        self.groq = AsyncGroq(api_key=self.config.grok_api_key)
 
     def setup_handlers(self) -> None:
         self.logger.info("Loading existing handlers:")

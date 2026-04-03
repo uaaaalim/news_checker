@@ -1,7 +1,7 @@
 [project]
-name = "[PROJECT_NAME]"
+name = "news_checker"
 version = "1.0.0"
-description = "[PROJECT_DESCRIPTION]"
+description = "A News Checker Service for Telegram (as Bot) based on AI"
 authors = [
     {name = "Alim",email = "zhaba.v.kedah77@gmail.com"}
 ]
@@ -14,8 +14,8 @@ dependencies = [
     "alembic (>=1.18.4,<2.0.0)",
     "colorlog (>=6.10.1,<7.0.0)",
     "psutil (>=7.2.2,<8.0.0)",
-    "tzdata (>=2025.3,<2026.0)"
-
+    "tzdata (>=2025.3,<2026.0)",
+    "groq (>=1.1.2,<2.0.0)"
 ]
 
 
