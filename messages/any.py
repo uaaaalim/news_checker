@@ -20,7 +20,7 @@ class AnyMessage(BaseMessage):
     LLM_TOOLS = [{"type": "browser_search"}]
     LLM_REASONING_EFFORT = "low"
     LLM_TOP_P = 1
-    LLM_MODEL = "openai/gpt-oss-20b"
+    LLM_MODEL = "openai/gpt-oss-120b"
     MAX_TEXT_LENGTH = 1000
 
     async def handle(self, message: Message) -> None:
