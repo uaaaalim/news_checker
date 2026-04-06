@@ -18,7 +18,7 @@ class AnyMessage(BaseMessage):
     LLM_MAX_COMPLETION_TOKENS = 500
     LLM_STREAM = False
     LLM_TOOLS = [{"type": "browser_search"}]
-    LLM_REASONING_EFFORT = "low"
+    LLM_REASONING_EFFORT = "medium"
     LLM_TOP_P = 1
     LLM_MODEL = "openai/gpt-oss-120b"
     MAX_TEXT_LENGTH = 1000
