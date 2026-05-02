@@ -15,10 +15,10 @@ class AnyMessage(BaseMessage):
     trigger = "*"
 
     LLM_TEMPERATURE = 0.2
-    LLM_MAX_COMPLETION_TOKENS = 500
+    LLM_MAX_COMPLETION_TOKENS = 1500
     LLM_STREAM = False
     LLM_TOOLS = [{"type": "browser_search"}]
-    LLM_REASONING_EFFORT = "medium"
+    LLM_REASONING_EFFORT = "low"
     LLM_TOP_P = 1
     LLM_MODEL = "openai/gpt-oss-120b"
     MAX_TEXT_LENGTH = 1000
@@ -109,16 +109,6 @@ class AnyMessage(BaseMessage):
                 )
                 return False
 
-            content = self._clean_json_content(content)
-            data = json.loads(content)
-
-        except JSONDecodeError as error:
-            self.client.logger.exception("Failed to parse LLM JSON: %s", error)
-            await status_message.edit_text(
-                "❌ I received an invalid JSON response from the model."
-            )
-            return False
-
         except RateLimitError:
             self.client.logger.warning("Rate limit error during the request to LLM")
             await status_message.edit_text(
@@ -133,58 +123,9 @@ class AnyMessage(BaseMessage):
             )
             return False
 
-        headline = data.get("headline", "unknown")
-        verdict = data.get("verdict", "unknown")
-        confidence = data.get("confidence", "unknown")
-        summary = data.get("summary", "No summary was provided.")
-        reasons = data.get("reasons", [])
-        sources = data.get("sources", [])
-
-        answer = [
-            f"📰 <b>Headline:</b> {headline}\n",
-
-            f"📌 So, my verdict: <b>{verdict}</b> (with <b>{confidence} confidence</b>)\n",
-            
-            f"📰 Summary:",
-            f"— {summary}\n"
-        ]
-
-        if reasons:
-            answer.append("🧠 <b>Reasons:</b>")
-            answer.extend(f"• {reason}" for reason in reasons)
-            answer.append(" ")
-
-        if sources:
-            answer.append("🔗 <b>Sources (references):</b>")
-            _sources = []
-
-            for source in sources:
-                title = source.get("title", "Untitled")
-                url = source.get("url", "")
-
-                if not url:
-                    continue
-
-                _sources.append(f"• <a href=\"{url}\">{title}</a>")
-
-                if len(_sources) >= 5:
-                    break
-
-            answer.extend(_sources)
-
-        await status_message.edit_text(text="\n".join(answer), disable_web_page_preview=True, parse_mode="HTML")
+        await status_message.edit_text(
+            text=content,
+            disable_web_page_preview=True,
+            parse_mode="HTML"
+        )
         return True
-
-    @staticmethod
-    def _clean_json_content(content: str) -> str:
-        content = content.strip()
-
-        if content.startswith("```json"):
-            content = content.removeprefix("```json").strip()
-        elif content.startswith("```"):
-            content = content.removeprefix("```").strip()
-
-        if content.endswith("```"):
-            content = content.removesuffix("```").strip()
-
-        return content
