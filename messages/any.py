@@ -1,5 +1,4 @@
 from datetime import datetime, UTC, timedelta
-from json import JSONDecodeError
 
 from aiogram.types import Message
 from groq import RateLimitError
@@ -7,8 +6,6 @@ from groq import RateLimitError
 from core.implementations.message import BaseMessage
 from database.services.user_check import get_by_tg_id, delete_oldest_by_tg_id, create_user_check
 from services.ai.news_checker import AI_SYSTEM_INSTRUCTIONS
-
-import json
 
 
 class AnyMessage(BaseMessage):
