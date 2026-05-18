@@ -5,12 +5,9 @@ import tomllib
 from pathlib import Path
 
 import aiogram
-import alembic
-import sqlalchemy
-import asyncpg
+import groq
 
-from core.client import BotClient
-
+from main import logger, run, shutdown
 
 def get_project_meta() -> dict[str, str]:
     pyproject_path = Path(__file__).resolve().parent / "pyproject.toml"
@@ -52,33 +49,28 @@ def get_git_short_hash() -> str:
 
 async def main() -> None:
     meta = get_project_meta()
-    client = BotClient()
 
-    client.logger.info("Running project using utilities below:")
-    client.logger.info("")
-    client.logger.info("[entry] Project name: %s", meta["name"])
-    client.logger.info("[entry] Version: %s", meta["version"])
-    client.logger.info("[entry] Git commit: %s", get_git_short_hash())
-    client.logger.info("[entry] Python version: %s", platform.python_version())
-    client.logger.info("[entry] aiogram: %s", aiogram.__version__)
-    client.logger.info("[entry] sqlalchemy: %s (with postgresql connection)", sqlalchemy.__version__)
-    client.logger.info("[entry] asyncpg: %s", asyncpg.__version__)
-    client.logger.info("[entry] alembic: %s", alembic.__version__)
-    client.logger.info("")
-    client.logger.info(
+    logger.info("Running project using utilities below:")
+    logger.info("")
+    logger.info("[entry] Project name: %s", meta["name"])
+    logger.info("[entry] Version: %s", meta["version"])
+    logger.info("[entry] Git commit: %s", get_git_short_hash())
+    logger.info("[entry] Python version: %s", platform.python_version())
+    logger.info("[entry] aiogram: %s", aiogram.__version__)
+    logger.info("[entry] groq: %s", groq.__version__)
+    logger.info("")
+    logger.info(
         "Welcome to %s, author: %s <%s>",
         meta["name"],
         meta["author_name"],
         meta["author_email"],
     )
-    client.logger.info("Starting up...")
-
-    await asyncio.sleep(0.7)
+    logger.info("Starting up...")
 
     try:
-        await client.run()
+        await run()
     finally:
-        await client.shutdown()
+        await shutdown()
 
 
 if __name__ == "__main__":
