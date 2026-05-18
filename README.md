@@ -1,554 +1,202 @@
-# News Checker - Telegram Bot
+# News Checker — Telegram Bot
 
-`News checker` — Бот для телеграм с возможностью проверки любой статьи или новости на фейк
-- aiogram
-- SQLAlchemy
-- PostgreSQL
-- Alembic
-- Poetry
+News Checker is an asynchronous Telegram bot that checks news claims, factual statements, rumors, questions, or article quotes with an AI model through the Groq API. The bot is built with `aiogram`, uses long polling, and replies with a short fact-check verdict, reasoning, and HTML links to sources.
 
----
+## Features
 
-## Возможности
+- `/start` command with a short project introduction.
+- Text-only fact-checking flow for user messages.
+- Input validation for empty messages and messages longer than 1000 characters.
+- Groq Chat Completions integration with `openai/gpt-oss-120b`.
+- HTML-formatted Telegram responses with disabled link previews.
+- Colored console logging and startup metadata output.
+- Environment-variable based configuration through `.env`.
 
-- удобная структура для Telegram-бота;
-- работа с PostgreSQL;
-- миграции через Alembic;
-- управление зависимостями через Poetry;
-- поддержка `.env`;
-- виртуальное окружение `.venv` создаётся **внутри проекта**.
-
----
-
-## Стек
+## Tech stack
 
 - Python `>=3.13,<3.15`
-- aiogram
-- SQLAlchemy
-- asyncpg
-- Alembic
+- aiogram `3.x`
+- Groq Python SDK
 - python-dotenv
 - colorlog
+- Poetry
 
----
+## Project structure
 
-## Что нужно установить заранее
+```text
+.
+├── app.py            # Minimal entrypoint that runs run.main()
+├── run.py            # Startup logging, metadata, and graceful shutdown wrapper
+├── main.py           # Bot configuration, handlers, LLM prompt, and polling logic
+├── exceptions.py     # Custom missing-environment exception
+├── pyproject.toml    # Project metadata and Poetry dependencies
+├── poetry.lock       # Locked dependency versions
+├── alembic.ini       # Legacy config file; the current app does not use a database
+└── README.md
+```
 
-Перед началом установите:
+## Requirements
 
-- **Python**: https://www.python.org/downloads/
-- **Poetry**: https://python-poetry.org/docs/#installation
-- **PostgreSQL**: https://www.postgresql.org/download/
+Install these tools before running the bot:
 
----
+- Python 3.13 or newer within the supported range.
+- Poetry.
+- A Telegram bot token from [BotFather](https://t.me/BotFather).
+- A Groq API token.
 
-# Быстрая установка
+> The current code does not use PostgreSQL, SQLAlchemy, or Alembic migrations. Only `BOT_TOKEN` and `GROQ_API_TOKEN` are required at runtime.
 
-## 1. Клонировать проект
+## Quick start
+
+### 1. Clone the repository
 
 ```bash
 git clone <YOUR_REPOSITORY_URL>
-cd <PROJECT_FOLDER>
-````
+cd news_checker
+```
 
----
-
-## 2. Включить `.venv` внутри проекта
-
-Чтобы Poetry создавал виртуальное окружение **не глобально**, а прямо в папке проекта:
+### 2. Keep Poetry's virtual environment inside the project
 
 ```bash
 poetry config virtualenvs.in-project true
 ```
 
-Проверить можно так:
+Optional check:
 
 ```bash
 poetry config virtualenvs.in-project
 ```
 
-Должно вернуть `true`.
+The command should print `true`, and Poetry will create the environment in `./.venv`.
 
-После этого окружение будет создаваться в папке:
-
-```bash
-./.venv
-```
-
----
-
-## 3. Установить зависимости
+### 3. Install dependencies
 
 ```bash
 poetry env use 3.13
 poetry install
 ```
 
----
+### 4. Create `.env`
 
-## 4. Создать `.env`
-
-Создайте файл `.env` в корне проекта.
-
-Пример:
+Create a `.env` file in the repository root:
 
 ```env
 BOT_TOKEN=1234567890:your_telegram_bot_token
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/bot_db
-LOG_LEVEL=INFO
-OWNER_IDS=123456789,987654321
-GROK_API_KEY=abcdefhijklmnop...xyz
+GROQ_API_TOKEN=gsk_your_groq_api_token
 ```
 
-### Обязательные переменные
+Required variables:
 
-* `BOT_TOKEN`
-* `DATABASE_URL`
-* `GROK_API_KEY`
+| Variable | Description |
+| --- | --- |
+| `BOT_TOKEN` | Telegram bot token issued by BotFather. |
+| `GROQ_API_TOKEN` | Groq API token used by the AI fact-checking model. |
 
-### Необязательные переменные
+### 5. Run the bot
 
-* `LOG_LEVEL` — уровень логов (default: INFO)
-* `OWNER_IDS` — список Telegram user ID через запятую
+```bash
+poetry run python app.py
+```
 
-> Вы можете добавлять свои переменные, потом только не забудьте отредактировать `core/config.py`
-
----
-
-## 5. Запуск проекта
+You can also run the wrapper directly:
 
 ```bash
 poetry run python run.py
 ```
 
----
+When the bot starts, it logs project metadata, Python version, aiogram version, Groq SDK version, and then starts polling Telegram.
 
-# Установка на Ubuntu
+## How it works
 
-Ниже максимально простой вариант для Ubuntu 22.04 / 24.04.
+1. `app.py` starts the async entrypoint from `run.py`.
+2. `run.py` prints startup metadata and calls `main.run()`.
+3. `main.py` loads `.env`, validates required variables, creates the Telegram bot, dispatcher, and Groq async client.
+4. A `/start` handler explains how to use the bot.
+5. Any regular text message is sent to the configured Groq model with strict fact-checking instructions.
+6. The bot edits the temporary “checking” message with the final verdict.
+7. On shutdown, the Telegram bot session is closed cleanly.
 
-## 1. Установить системные пакеты
+## User input rules
 
-```bash
-sudo apt update
-sudo apt install -y curl git software-properties-common
-```
+The bot accepts:
 
----
+- news claims;
+- factual claims;
+- real-world rumors;
+- serious real-world questions;
+- quotes from news or articles.
 
-## 2. Установить Python
+The bot rejects unsupported or unclear input such as empty messages, attachments, spam, jokes, math tasks, personal chat, and messages over 1000 characters.
 
-Сначала проверьте, есть ли нужная версия:
+## AI response format
 
-```bash
-python3 --version
-```
+The prompt in `main.py` asks the model to return:
 
-Если нужной версии нет, можно поставить через `deadsnakes`:
+- a short headline;
+- claim type;
+- verdict: `confirmed`, `false`, `misleading`, or `uncertain`;
+- confidence level: `high`, `medium`, or `low`;
+- a 1–2 sentence summary;
+- 1–3 short reasons;
+- 1–5 HTML source links.
 
-```bash
-sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install -y python3.13 python3.13-venv python3.13-dev
-```
+Telegram responses use `parse_mode="HTML"`, so source links should be valid HTML anchors.
 
-Проверка:
+## Configuration notes
 
-```bash
-python3.13 --version
-```
+Most LLM settings are currently constants in `main.py`:
 
----
+| Constant | Current value |
+| --- | --- |
+| `LLM_MODEL` | `openai/gpt-oss-120b` |
+| `LLM_TEMPERATURE` | `0.2` |
+| `LLM_MAX_COMPLETION_TOKENS` | `1500` |
+| `LLM_REASONING_EFFORT` | `low` |
+| `MAX_TEXT_LENGTH` | `1000` |
 
-## 3. Установить Poetry
+If you need to change the model, token limit, temperature, or maximum user message length, update these constants in `main.py`.
 
-Официальный способ:
+## Useful commands
 
-```bash
-curl -sSL https://install.python-poetry.org | python3.13 -
-```
-
-Добавьте Poetry в PATH:
-
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-Проверка:
-
-```bash
-poetry --version
-```
-
----
-
-## 4. Клонировать проект
-
-```bash
-git clone <YOUR_REPOSITORY_URL>
-cd <PROJECT_FOLDER>
-```
-
----
-
-## 5. Настроить Poetry так, чтобы `.venv` был внутри проекта
-
-```bash
-poetry config virtualenvs.in-project true
-```
-
----
-
-## 6. Установить зависимости
-
-```bash
-poetry env use 3.13
-poetry install
-```
-
----
-
-## 7. Создать `.env`
-
-```bash
-nano .env
-```
-
-Минимум:
-
-```env
-BOT_TOKEN=...
-DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/bot_db
-```
-
----
-
-## 8. Запуск
-
-```bash
-poetry run python app.py
-```
-
----
-
-# Установка на Windows
-
-## 1. Установить Python
-
-Скачайте и установите Python:
-[https://www.python.org/downloads/](https://www.python.org/downloads/)
-
-Во время установки **обязательно включите**:
-
-* `Add python.exe to PATH`
-
-Проверка в PowerShell или CMD:
-
-```powershell
-python --version
-```
-
----
-
-## 2. Установить PostgreSQL
-
-Скачайте PostgreSQL:
-[https://www.postgresql.org/download/windows/](https://www.postgresql.org/download/windows/)
-
-После установки запомните:
-
-* пользователя
-* пароль
-* порт
-* имя базы данных
-
----
-
-## 3. Установить Poetry
-
-Официальная инструкция:
-[https://python-poetry.org/docs/#installation](https://python-poetry.org/docs/#installation)
-
-Обычно для PowerShell:
-
-```powershell
-(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -
-```
-
-Проверка:
-
-```powershell
-poetry --version
-```
-
-Если команда не найдена, перезапустите терминал.
-
----
-
-## 4. Клонировать проект
-
-```powershell
-git clone <YOUR_REPOSITORY_URL>
-cd <PROJECT_FOLDER>
-```
-
-Если Git не установлен:
-[https://git-scm.com/download/win](https://git-scm.com/download/win)
-
----
-
-## 5. Настроить Poetry на `.venv` внутри проекта
-
-```powershell
-poetry config virtualenvs.in-project true
-```
-
----
-
-## 6. Установить зависимости
-
-```powershell
-poetry env use 3.13
-poetry install
-```
-
----
-
-## 7. Создать `.env`
-
-Создайте файл `.env` в корне проекта, например:
-
-```env
-BOT_TOKEN=...
-DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/bot_db
-```
-
----
-
-## 8. Запуск
-
-```powershell
-poetry run python app.py
-```
-
----
-
-# Настройка PostgreSQL
-
-## Пример строки подключения
-
-```env
-DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/bot_db
-```
-
-Где:
-
-* `postgres` — пользователь БД
-* `password` — пароль
-* `localhost` — хост
-* `5432` — порт PostgreSQL
-* `bot_db` — имя базы данных
-
----
-
-## Создание базы данных вручную
-
-Через `psql`:
-
-```sql
-CREATE DATABASE bot_db;
-```
-
-Если нужно сразу указать владельца:
-
-```sql
-CREATE DATABASE bot_db OWNER postgres;
-```
-
----
-
-# Миграции Alembic
-
-## Создать миграцию
-
-```bash
-poetry run alembic revision -m "create table"
-```
-
-или с автогенерацией:
-
-```bash
-poetry run alembic revision --autogenerate -m "update models"
-```
-
-## Применить миграции
-
-```bash
-poetry run alembic upgrade head
-```
-
-## Откатить последнюю миграцию
-
-```bash
-poetry run alembic downgrade -1
-```
-
----
-
-# Структура проекта
-
-Пример структуры:
-
-```text
-.
-├── commands/
-├── buttons/
-├── messages/
-├── schedules/
-├── database/
-│   ├── entities/
-│   └── services/
-├── core/
-├── alembic/
-├── app.py
-├── run.py
-├── pyproject.toml
-├── .env
-└── README.md
-```
-
----
-
-# Логика проекта
-
-При запуске проект может автоматически загружать модули из папок:
-
-* `commands/` — Telegram-команды
-* `buttons/` — callback-кнопки
-* `messages/` — обработчики сообщений
-* `schedules/` — фоновые задачи
-
----
-
-# Пример команды
-
-```python
-from aiogram.types import Message
-from core.implementations.command import BaseCommand
-
-
-class PingCommand(BaseCommand):
-    name = "ping"
-    description = "Проверка работы бота"
-
-    async def execute(self, message: Message) -> None:
-        await message.answer("pong")
-```
-
----
-
-# Пример кнопки
-
-```python
-from aiogram.types import CallbackQuery
-from core.implementations.button import BaseButton
-
-
-class PingButton(BaseButton):
-    callback_data = "ping_button"
-
-    async def execute(self, callback: CallbackQuery) -> None:
-        await callback.answer("Нажато")
-```
-
----
-
-# Пример entity
-
-```python
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
-
-from core.database.base import BaseEntity
-
-
-class ExampleEntity(BaseEntity):
-    __tablename__ = "examples"
-
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-```
-
----
-
-# Пример service
-
-```python
-from collections.abc import Sequence
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from database.entities.example import ExampleEntity
-
-
-async def get_examples(session: AsyncSession) -> Sequence[ExampleEntity]:
-    result = await session.scalars(select(ExampleEntity))
-    return result.all()
-```
-
----
-
-# Полезные команды
-
-## Установка зависимостей
+Install dependencies:
 
 ```bash
 poetry install
 ```
 
-## Запуск бота
+Run the bot:
 
 ```bash
 poetry run python app.py
 ```
 
-## Создание миграции
+Run Python syntax checks:
 
 ```bash
-poetry run alembic revision -m "message"
+python -m compileall app.py run.py main.py exceptions.py
 ```
 
-## Применение миграций
+Show project metadata from Poetry:
 
 ```bash
-poetry run alembic upgrade head
+poetry check
 ```
 
----
+## Deployment with systemd on Ubuntu
 
-# Деплой через systemd (Ubuntu)
-
-Если бот запускается на сервере, можно сделать сервис.
-
-Создайте файл:
-
-```bash
-/etc/systemd/system/bot.service
-```
-
-Пример:
+Create a service file, for example `/etc/systemd/system/news-checker.service`:
 
 ```ini
 [Unit]
-Description=Telegram bot
+Description=News Checker Telegram Bot
 After=network.target
 
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/opt/<PROJECT_FOLDER>
-Environment=PATH=/opt/<PROJECT_FOLDER>/.venv/bin:/usr/bin:/bin
-ExecStart=/opt/<PROJECT_FOLDER>/.venv/bin/python app.py
+WorkingDirectory=/opt/news_checker
+Environment=PATH=/opt/news_checker/.venv/bin:/usr/bin:/bin
+ExecStart=/opt/news_checker/.venv/bin/python app.py
 Restart=always
 RestartSec=5
 
@@ -556,44 +204,48 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-Дальше:
+Enable and start the service:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable bot
-sudo systemctl start bot
-sudo systemctl status bot
+sudo systemctl enable news-checker
+sudo systemctl start news-checker
+sudo systemctl status news-checker
 ```
 
-Логи:
+View logs:
 
 ```bash
-journalctl -u bot -f
+journalctl -u news-checker -f
 ```
 
+## Troubleshooting
+
+### `Environment variables 'BOT_TOKEN, GROQ_API_TOKEN' is required`
+
+Create `.env` in the project root and make sure it contains both required variables.
+
+### Telegram bot does not answer
+
+Check that:
+
+- the bot token is valid;
+- the bot is running without exceptions;
+- no other process is polling the same Telegram bot token.
+
+### Groq errors or rate limits
+
+Check that:
+
+- `GROQ_API_TOKEN` is valid;
+- the selected model is available for your Groq account;
+- your account has enough quota;
+- you are not exceeding API rate limits.
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE` for details.
+
 ---
 
-# Что заменить в этом шаблоне
-
-Перед использованием README замените:
-
-* `[PROJECT_NAME]`
-* `<YOUR_REPOSITORY_URL>`
-* `<PROJECT_FOLDER>`
-* список переменных `.env`
-* описание проекта
-* примеры команд и модулей, если они отличаются
-
----
-
-# Рекомендации
-
-* держите `.venv` внутри проекта для предсказуемости;
-* не храните `.env` в git;
-* используйте Alembic для всех изменений БД;
-* разделяйте entities, services и handlers;
-* не перегружайте README деталями, которые относятся только к одному конкретному боту.
-
----
-
-* Alim Mun (MIT License &copy; 2026) with love from Kazakhstan
+Alim Mun — 2026, with love from Kazakhstan.
