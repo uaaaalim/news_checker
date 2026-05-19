@@ -183,21 +183,22 @@ async def handle_request(message: Message):
         llm_response = await groq_client.chat.completions.create( # type: ignore
             model=LLM_MODEL,
             messages=[
-              {
-                "role": "system",
-                "content": LLM_INSTRUCTIONS
-              },
-              {
-                "role": "user",
-                "content": text
-              }
+                {
+                    "role": "system",
+                    "content": LLM_INSTRUCTIONS,
+                },
+                {
+                    "role": "user",
+                    "content": text,
+                },
             ],
             temperature=LLM_TEMPERATURE,
             max_completion_tokens=LLM_MAX_COMPLETION_TOKENS,
             top_p=LLM_TOP_P,
             reasoning_effort=LLM_REASONING_EFFORT,
-            stream=LLM_STREAM,
-            stop=None
+            stop=None,
+            stream=False,
+            tools=LLM_TOOLS
         )
 
         choice = llm_response.choices[0].message
